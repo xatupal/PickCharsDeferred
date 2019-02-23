@@ -1,18 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Text.RegularExpressions;
 using PickCharsDeferred.Properties;
 using KeePass.Plugins;
 using KeePass.Util;
-using KeePass.Util.Spr;
-using KeePassLib;
 
 namespace PickCharsDeferred
 {
 	public sealed class PickCharsDeferredExt : Plugin
 	{
-		private int _sequenceIndex = -1;
 		private string[] _sequenceParts;
 
 		public override bool Initialize(IPluginHost host)
@@ -32,29 +27,25 @@ namespace PickCharsDeferred
 
 		private void HandleAutoTypeFilterCompilePre(object sender, AutoTypeEventArgs e)
 		{
-			if (_sequenceParts == null)
-			{
-				var newSequenceParts = Regex.Split(e.Sequence, @"(?=\{PICKCHARS)");
-				if (newSequenceParts.Length == 1)
-					return;
+			if (_sequenceParts != null)
+				return;
 
-				_sequenceParts = newSequenceParts;
-				_sequenceIndex = _sequenceParts.Length;
-				e.Sequence = _sequenceParts[--_sequenceIndex];
-				AutoType.PerformGlobal(new List<PwDatabase> { e.Database }, null);
-			}
-			else
+			_sequenceParts = Regex.Split(e.Sequence, @"(?=\{PICKCHARS)");
+			if (_sequenceParts.Length == 1)
 			{
-				e.Sequence = _sequenceParts[--_sequenceIndex];
-				if (_sequenceIndex == 0)
-				{
-					_sequenceParts = null;
-				}
-				else
-				{
-					AutoType.PerformGlobal(new List<PwDatabase> { e.Database }, null);
-				}
+				_sequenceParts = null;
+				return;
 			}
+
+			foreach (var sequencePart in _sequenceParts)
+			{
+				var success = AutoType.PerformIntoCurrentWindow(e.Entry, e.Database, sequencePart);
+				if (!success)
+					break;
+			}
+
+			_sequenceParts = null;
+			e.Sequence = string.Empty;
 		}
 
 		public override string UpdateUrl
