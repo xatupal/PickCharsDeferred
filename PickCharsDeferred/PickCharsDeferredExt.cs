@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using System.Text.RegularExpressions;
 using PickCharsDeferred.Properties;
 using KeePass.Plugins;
@@ -37,8 +38,17 @@ namespace PickCharsDeferred
 				return;
 			}
 
-			foreach (var sequencePart in _sequenceParts)
+			for (var i = 0; i < _sequenceParts.Length; i++)
 			{
+				var delayPlaceholder = string.Empty;
+				for (int j = i - 1; j >= 0; j--)
+				{
+					delayPlaceholder = GetDelayPlaceholder(_sequenceParts[j]);
+					if (delayPlaceholder != string.Empty)
+						break;
+				}
+
+				var sequencePart = delayPlaceholder + _sequenceParts[i];
 				var success = AutoType.PerformIntoCurrentWindow(e.Entry, e.Database, sequencePart);
 				if (!success)
 					break;
@@ -46,6 +56,19 @@ namespace PickCharsDeferred
 
 			_sequenceParts = null;
 			e.Sequence = string.Empty;
+		}
+
+		private string GetDelayPlaceholder(string sequencePart)
+		{
+			var startIndex = sequencePart.LastIndexOf("{DELAY=", StringComparison.OrdinalIgnoreCase);
+			if (startIndex < 0)
+				return string.Empty;
+
+			var endIndex = sequencePart.IndexOf('}', startIndex);
+			if (endIndex < 0)
+				return string.Empty;
+
+			return sequencePart.Substring(startIndex, endIndex - startIndex + 1);
 		}
 
 		public override string UpdateUrl
